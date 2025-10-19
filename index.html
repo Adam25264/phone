@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTendance - Real Phone Notifications</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        :root {
+            --primary: #25D366;
+            --secondary: #128C7E;
+            --dark: #121212;
+            --card-bg: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+        }
+        
+        body {
+            background: var(--dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 15px;
+        }
+        
+        .header h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 5px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        /* REAL PHONE STATUS BAR */
+        .status-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: #000;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10000;
+        }
+        
+        .status-bar-left, .status-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .notification-indicator {
+            width: 6px;
+            height: 6px;
+            background: #ff4444;
+            border-radius: 50%;
+            position: absolute;
+            top: 8px;
+            right: 80px;
+            display: none;
+        }
+        
+        /* PHONE NOTIFICATION PANEL */
+        .notification-panel {
+            position: fixed;
+            top: 30px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 9999;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        .notification-panel.open {
+            transform: translateY(0);
+        }
+        
+        .notification-header {
+            padding: 20px 15px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .notification-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .clear-all-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .notification-list {
+            padding: 10px 0;
+        }
+        
+        /* INDIVIDUAL NOTIFICATION STYLES */
+        .notification-item {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .notification-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .notification-item.unread {
+            background: rgba(37, 211, 102, 0.1);
+        }
+        
+        .app-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .whatsapp-icon { background: #25D366; }
+        .messenger-icon { background: #0084FF; }
+        .instagram-icon { background: #E4405F; }
+        .system-icon { background: #666; }
+        .smarttendance-icon { background: #3366cc; }
+        
+        .notification-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .notification-title {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .app-name {
+            color: var(--text-primary);
+        }
+        
+        .notification-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .notification-message {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 5px;
+        }
+        
+        .notification-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .message-count {
+            background: var(--primary);
+            color: white;
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        /* QUICK SETTINGS */
+        .quick-settings {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        
+        .setting-item {
+            text-align: center;
+            padding: 10px 5px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .setting-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .setting-icon {
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 8px;
+            font-size: 20px;
+        }
+        
+        .setting-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* TOAST NOTIFICATION (Brief appearance at top) */
+        .toast-notification {
+            position: fixed;
+            top: 35px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 10px;
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10001;
+            animation: slideInToast 0.3s ease, slideOutToast 0.3s ease 2.7s;
+            border-left: 4px solid #25D366;
+        }
+        
+        @keyframes slideInToast {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutToast {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+        }
+
+        /* APP CONTENT */
+        .app-content {
+            margin-top: 40px;
+        }
+        
+        .demo-section {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .demo-section h2 {
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .feature-list i {
+            color: var(--primary);
+        }
+
+        /* SWIPE INDICATOR */
+        .swipe-indicator {
+            position: fixed;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.1);
+            color: var(--text-secondary);
+            padding: 8px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            z-index: 100;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- REAL PHONE STATUS BAR -->
+    <div class="status-bar">
+        <div class="status-bar-left">
+            <span id="currentTime">12:30</span>
+        </div>
+        <div class="status-bar-right">
+            <span>📶</span>
+            <span>📡</span>
+            <span>🔋 85%</span>
+        </div>
+        <div class="notification-indicator" id="notificationIndicator"></div>
+    </div>
+
+    <!-- SWIPE INDICATOR -->
+    <div class="swipe-indicator" id="swipeIndicator">
+        ⬇️ Swipe down for notifications
+    </div>
+
+    <!-- NOTIFICATION PANEL -->
+    <div class="notification-panel" id="notificationPanel">
+        <div class="notification-header">
+            <h2>Notifications</h2>
+            <button class="clear-all-btn" onclick="notificationManager.clearAll()">Clear all</button>
+        </div>
+        
+        <div class="quick-settings">
+            <div class="setting-item">
+                <div class="setting-icon">📶</div>
+                <div class="setting-label">Wi-Fi</div>
+            </div>
+            <div class="setting-item">
+                <div class="setting-icon">🔔</div>
+                <div class="setting-label">Sound</div>
+            </div>
+            <div class="setting-item">
+                <div class="setting-icon">🔆</div>
+                <div class="setting-label">Brightness</div>
+            </div>
+            <div class="setting-item">
+                <div class="setting-icon">🔒</div>
+                <div class="setting-label">Lock</div>
+            </div>
+        </div>
+        
+        <div class="notification-list" id="notificationList">
+            <!-- Notifications will appear here -->
+        </div>
+    </div>
+
+    <!-- APP CONTENT -->
+    <div class="container">
+        <div class="header">
+            <h1>📱 SmartTendance</h1>
+            <p>Real Phone Notification System</p>
+        </div>
+
+        <div class="app-content">
+            <div class="demo-section">
+                <h2>Test Notifications</h2>
+                <div class="btn-group">
+                    <button class="btn" onclick="showNotification('whatsapp')">
+                        💚 WhatsApp Message
+                    </button>
+                    <button class="btn" onclick="showNotification('messenger')">
+                        💙 Messenger Alert
+                    </button>
+                    <button class="btn" onclick="showNotification('instagram')">
+                        🌈 Instagram DM
+                    </button>
+                    <button class="btn" onclick="showNotification('smarttendance')">
+                        🎓 SmartTendance Alert
+                    </button>
+                    <button class="btn" onclick="showNotification('system')">
+                        ⚙️ System Notification
+                    </button>
+                    <button class="btn" onclick="showMultipleNotifications()">
+                        🔢 Multiple Notifications
+                    </button>
+                </div>
+            </div>
+
+            <div class="demo-section">
+                <h2>How Phone Notifications Work</h2>
+                <ul class="feature-list">
+                    <li>📱 <strong>Status Bar Indicator</strong> - Dot appears when notifications arrive</li>
+                    <li>⬇️ <strong>Swipe Down</strong> - Open notification panel from top</li>
+                    <li>🔔 <strong>Toast Preview</strong> - Brief notification appears at top</li>
+                    <li>📋 <strong>Notification Panel</strong> - All notifications in one place</li>
+                    <li>⚡ <strong>Quick Settings</strong> - Access common phone settings</li>
+                    <li>👆 <strong>Tap to Open</strong> - Click notification to open app</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class RealPhoneNotificationManager {
+            constructor() {
+                this.notifications = [];
+                this.panelOpen = false;
+                this.unreadCount = 0;
+                this.loadFromStorage();
+                this.updateUI();
+                this.startClock();
+                this.setupSwipeDetection();
+            }
+            
+            addNotification(app, title, message, messageCount = 1) {
+                const notification = {
+                    id: 'notif_' + Date.now(),
+                    app,
+                    title,
+                    message,
+                    messageCount,
+                    timestamp: new Date(),
+                    read: false
+                };
+                
+                this.notifications.unshift(notification);
+                this.unreadCount++;
+                
+                this.saveToStorage();
+                this.updateUI();
+                
+                // Show toast notification
+                this.showToastNotification(notification);
+                
+                return notification.id;
+            }
+            
+            showToastNotification(notification) {
+                // Remove existing toast
+                const existingToast = document.querySelector('.toast-notification');
+                if (existingToast) {
+                    existingToast.remove();
+                }
+                
+                const toast = document.createElement('div');
+                toast.className = 'toast-notification';
+                
+                let icon = '💬';
+                let appName = 'App';
+                
+                switch(notification.app) {
+                    case 'whatsapp': 
+                        icon = '💚'; 
+                        appName = 'WhatsApp';
+                        toast.style.borderLeftColor = '#25D366';
+                        break;
+                    case 'messenger': 
+                        icon = '💙'; 
+                        appName = 'Messenger';
+                        toast.style.borderLeftColor = '#0084FF';
+                        break;
+                    case 'instagram': 
+                        icon = '🌈'; 
+                        appName = 'Instagram';
+                        toast.style.borderLeftColor = '#E4405F';
+                        break;
+                    case 'smarttendance': 
+                        icon = '🎓'; 
+                        appName = 'SmartTendance';
+                        toast.style.borderLeftColor = '#3366cc';
+                        break;
+                    default: 
+                        icon = '⚙️'; 
+                        appName = 'System';
+                        toast.style.borderLeftColor = '#666';
+                }
+                
+                toast.innerHTML = `
+                    <div style="font-size: 20px;">${icon}</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; font-size: 14px;">${appName}</div>
+                        <div style="font-size: 13px; color: #ccc;">${notification.message}</div>
+                    </div>
+                `;
+                
+                document.body.appendChild(toast);
+                
+                // Auto remove toast
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 3000);
+            }
+            
+            openNotificationPanel() {
+                const panel = document.getElementById('notificationPanel');
+                panel.classList.add('open');
+                this.panelOpen = true;
+                
+                // Mark all as read when panel opens
+                this.markAllAsRead();
+                
+                // Hide swipe indicator
+                document.getElementById('swipeIndicator').style.display = 'none';
+            }
+            
+            closeNotificationPanel() {
+                const panel = document.getElementById('notificationPanel');
+                panel.classList.remove('open');
+                this.panelOpen = false;
+            }
+            
+            markAllAsRead() {
+                this.notifications.forEach(notification => {
+                    if (!notification.read) {
+                        notification.read = true;
+                    }
+                });
+                this.unreadCount = 0;
+                this.saveToStorage();
+                this.updateUI();
+            }
+            
+            markAsRead(notificationId) {
+                const notification = this.notifications.find(n => n.id === notificationId);
+                if (notification && !notification.read) {
+                    notification.read = true;
+                    this.unreadCount--;
+                    this.saveToStorage();
+                    this.updateUI();
+                }
+            }
+            
+            clearAll() {
+                this.notifications = [];
+                this.unreadCount = 0;
+                this.saveToStorage();
+                this.updateUI();
+                this.closeNotificationPanel();
+            }
+            
+            openAppFromNotification(app) {
+                alert(`📱 Opening ${app}...\n\nThis would open the actual app on your phone.`);
+                this.closeNotificationPanel();
+            }
+            
+            updateUI() {
+                this.updateNotificationList();
+                this.updateStatusBar();
+            }
+            
+            updateNotificationList() {
+                const container = document.getElementById('notificationList');
+                
+                if (this.notifications.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+                            <div style="font-size: 48px; margin-bottom: 15px;">🔔</div>
+                            <div>No notifications</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = '';
+                
+                this.notifications.forEach(notification => {
+                    const notifEl = document.createElement('div');
+                    notifEl.className = `notification-item ${notification.read ? '' : 'unread'}`;
+                    notifEl.onclick = () => {
+                        this.markAsRead(notification.id);
+                        this.openAppFromNotification(notification.app);
+                    };
+                    
+                    let icon = '💬';
+                    let appName = 'App';
+                    let iconClass = 'system-icon';
+                    
+                    switch(notification.app) {
+                        case 'whatsapp': 
+                            icon = '💚'; 
+                            appName = 'WhatsApp';
+                            iconClass = 'whatsapp-icon';
+                            break;
+                        case 'messenger': 
+                            icon = '💙'; 
+                            appName = 'Messenger';
+                            iconClass = 'messenger-icon';
+                            break;
+                        case 'instagram': 
+                            icon = '🌈'; 
+                            appName = 'Instagram';
+                            iconClass = 'instagram-icon';
+                            break;
+                        case 'smarttendance': 
+                            icon = '🎓'; 
+                            appName = 'SmartTendance';
+                            iconClass = 'smarttendance-icon';
+                            break;
+                        default: 
+                            icon = '⚙️'; 
+                            appName = 'System';
+                            iconClass = 'system-icon';
+                    }
+                    
+                    notifEl.innerHTML = `
+                        <div class="app-icon ${iconClass}">${icon}</div>
+                        <div class="notification-content">
+                            <div class="notification-title">
+                                <span class="app-name">${appName}</span>
+                                <span class="notification-time">${this.formatTime(notification.timestamp)}</span>
+                            </div>
+                            <div class="notification-message">${notification.message}</div>
+                            <div class="notification-meta">
+                                <span>${notification.title}</span>
+                                ${notification.messageCount > 1 ? 
+                                    `<span class="message-count">${notification.messageCount} messages</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    
+                    container.appendChild(notifEl);
+                });
+            }
+            
+            updateStatusBar() {
+                const indicator = document.getElementById('notificationIndicator');
+                if (this.unreadCount > 0) {
+                    indicator.style.display = 'block';
+                } else {
+                    indicator.style.display = 'none';
+                }
+            }
+            
+            formatTime(date) {
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                
+                if (diffMins < 1) return 'now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                
+                return date.toLocaleDateString();
+            }
+            
+            startClock() {
+                const updateTime = () => {
+                    const now = new Date();
+                    document.getElementById('currentTime').textContent = 
+                        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                };
+                
+                updateTime();
+                setInterval(updateTime, 60000);
+            }
+            
+            setupSwipeDetection() {
+                let startY = 0;
+                let currentY = 0;
+                
+                document.addEventListener('touchstart', (e) => {
+                    startY = e.touches[0].clientY;
+                });
+                
+                document.addEventListener('touchmove', (e) => {
+                    if (!this.panelOpen && startY < 50) { // Only detect from top
+                        currentY = e.touches[0].clientY;
+                        const diff = currentY - startY;
+                        
+                        if (diff > 50) { // Swipe down detected
+                            this.openNotificationPanel();
+                        }
+                    }
+                });
+                
+                // Also support mouse for desktop
+                document.addEventListener('mousedown', (e) => {
+                    if (e.clientY < 50) { // Click near top
+                        this.openNotificationPanel();
+                    }
+                });
+            }
+            
+            saveToStorage() {
+                localStorage.setItem('phoneNotifications', JSON.stringify(this.notifications));
+                localStorage.setItem('unreadCount', this.unreadCount.toString());
+            }
+            
+            loadFromStorage() {
+                const saved = localStorage.getItem('phoneNotifications');
+                const savedUnread = localStorage.getItem('unreadCount');
+                
+                if (saved) {
+                    this.notifications = JSON.parse(saved).map(n => ({
+                        ...n,
+                        timestamp: new Date(n.timestamp)
+                    }));
+                }
+                
+                if (savedUnread) {
+                    this.unreadCount = parseInt(savedUnread);
+                }
+            }
+        }
+
+        // Initialize notification manager
+        const notificationManager = new RealPhoneNotificationManager();
+
+        // Demo functions
+        function showNotification(type) {
+            const notifications = {
+                whatsapp: {
+                    title: 'John Doe',
+                    message: 'Hey! Are we still meeting for lunch today? 🍕',
+                    count: 1
+                },
+                messenger: {
+                    title: 'Sarah Smith', 
+                    message: 'You: Sounds good! 👌\nSarah: Great! See you then 😊',
+                    count: 2
+                },
+                instagram: {
+                    title: 'jessica_writes',
+                    message: 'Loved your recent post! The photography is amazing ✨',
+                    count: 1
+                },
+                smarttendance: {
+                    title: 'Attendance Recorded',
+                    message: 'Your attendance for CS101 has been successfully recorded! ✅',
+                    count: 1
+                },
+                system: {
+                    title: 'System Update',
+                    message: 'New features available. Update your app to the latest version.',
+                    count: 1
+                }
+            };
+            
+            notificationManager.addNotification(
+                type, 
+                notifications[type].title, 
+                notifications[type].message,
+                notifications[type].count
+            );
+        }
+        
+        function showMultipleNotifications() {
+            // Show 3 different notifications
+            setTimeout(() => showNotification('whatsapp'), 100);
+            setTimeout(() => showNotification('messenger'), 800);
+            setTimeout(() => showNotification('smarttendance'), 1500);
+        }
+
+        // Close panel when clicking outside
+        document.addEventListener('click', function(event) {
+            const panel = document.getElementById('notificationPanel');
+            if (notificationManager.panelOpen && !panel.contains(event.target) && event.clientY > 100) {
+                notificationManager.closeNotificationPanel();
+            }
+        });
+
+        // Add welcome notification
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                notificationManager.addNotification(
+                    'smarttendance',
+                    'Welcome to SmartTendance',
+                    'Swipe down from the top to see your notifications! 📱',
+                    1
+                );
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
